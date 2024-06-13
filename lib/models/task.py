@@ -1,48 +1,41 @@
-from db import get_db
+import sqlite3
 
-class Task:
-    def __init__(self, id=None, project_id=None, task_name=None, description=None, status='pending', deadline=None):
-        self.id = id
-        self.project_id = project_id
-        self.task_name = task_name
-        self.description = description
-        self.status = status
-        self.deadline = deadline
+DATABASE_NAME = "task_management.db"
 
-    def save(self):
-        conn = get_db()
-        cursor = conn.cursor()
-        
-        if self.id is None:
-            cursor.execute("""
-            INSERT INTO tasks (project_id, task_name, description, status, deadline) 
-            VALUES (?, ?, ?, ?, ?)
-            """, (self.project_id, self.task_name, self.description, self.status, self.deadline))
-            self.id = cursor.lastrowid
-        else:
-            cursor.execute("""
-            UPDATE tasks SET project_id = ?, task_name = ?, description = ?, status = ?, deadline = ? WHERE id = ?
-            """, (self.project_id, self.task_name, self.description, self.status, self.deadline, self.id))
-        
-        conn.commit()
-        conn.close()
+def get_db():
+    conn = sqlite3.connect(DATABASE_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-    @classmethod
-    def get(cls, task_id):
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
-        row = cursor.fetchone()
-        conn.close()
-        
-        if row:
-            return cls(id=row["id"], project_id=row["project_id"], task_name=row["task_name"], description=row["description"], status=row["status"], deadline=row["deadline"])
-        return None
+def init_db():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER,
+        task_name TEXT NOT NULL,
+        description TEXT,
+        status TEXT DEFAULT 'pending',
+        deadline DATE,
+        FOREIGN KEY (project_id) REFERENCES projects (id)
+    )
+    """)
+    conn.commit()
+    conn.close()
 
-    @classmethod
-    def delete(cls, task_id):
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
-        conn.commit()
-        conn.close()
+def create_task(project_id, task_name, description, status, deadline):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO tasks (project_id, task_name, description, status, deadline) VALUES (?, ?, ?, ?, ?)", 
+                   (project_id, task_name, description, status, deadline))
+    conn.commit()
+    conn.close()
+
+def list_tasks():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tasks")
+    tasks = cursor.fetchall()
+    conn.close()
+    return tasks

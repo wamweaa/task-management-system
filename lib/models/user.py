@@ -1,46 +1,37 @@
-from db import get_db
+import sqlite3
 
-class User:
-    def __init__(self, id=None, username=None, role=None, created_at=None):
-        self.id = id
-        self.username = username
-        self.role = role
-        self.created_at = created_at
+DATABASE_NAME = "task_management.db"
 
-    def save(self):
-        conn = get_db()
-        cursor = conn.cursor()
-        
-        if self.id is None:
-            cursor.execute("""
-            INSERT INTO users (username, role) 
-            VALUES (?, ?)
-            """, (self.username, self.role))
-            self.id = cursor.lastrowid
-        else:
-            cursor.execute("""
-            UPDATE users SET username = ?, role = ? WHERE id = ?
-            """, (self.username, self.role, self.id))
-        
-        conn.commit()
-        conn.close()
+def get_db():
+    conn = sqlite3.connect(DATABASE_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-    @classmethod
-    def get(cls, user_id):
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-        row = cursor.fetchone()
-        conn.close()
-        
-        if row:
-            return cls(id=row["id"], username=row["username"], role=row["role"], created_at=row["created_at"])
-        return None
+def init_db():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        role TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    conn.commit()
+    conn.close()
 
-    @classmethod
-    def delete(cls, user_id):
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
-        conn.commit()
-        conn.close()
+def create_user(username, role):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO users (username, role) VALUES (?, ?)", (username, role))
+    conn.commit()
+    conn.close()
+
+def list_users():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users")
+    users = cursor.fetchall()
+    conn.close()
+    return users
